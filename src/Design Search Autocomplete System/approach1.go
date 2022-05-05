@@ -9,23 +9,27 @@ type Sentence struct {
 	weight int
 }
 type Trie struct {
-	v        string
-	top3     []Sentence
-	children map[rune]*Trie
+	v         string
+	top3      []Sentence
+	sentences map[string]int
+	children  map[rune]*Trie
 }
 
 type AutocompleteSystem struct {
-	trie         *Trie
+	root         *Trie
 	currNode     *Trie
 	currSentence string
 }
 
+// ["aaa", "b", "cc"], [1, 2, 1]
+
 func Constructor(sentences []string, times []int) AutocompleteSystem {
 	node := &Trie{
-		children: make(map[rune]*Trie),
+		children:  make(map[rune]*Trie),
+		sentences: make([string]int),
 	}
 	as := AutocompleteSystem{
-		trie:     node,
+		root:     node,
 		currNode: node,
 	}
 	for i, sentence := range sentences {
@@ -38,7 +42,7 @@ func Constructor(sentences []string, times []int) AutocompleteSystem {
 func (this *AutocompleteSystem) Input(c byte) []string {
 	this.currSentence += string(c)
 	if rune(c) == '#' {
-		this.currNode = this.trie
+		this.currNode = this.root
 		this.add(this.currSentence, 1)
 		this.currSentence = ""
 		return []string{}
@@ -52,39 +56,33 @@ func (this *AutocompleteSystem) Input(c byte) []string {
 }
 
 func (this *AutocompleteSystem) add(sentence string, weight int) {
-	currNode := this.trie
+	currNode := this.root
 	for i := 0; i < len(sentence); i++ {
 		n, ok := currNode.children[rune(sentence[i])]
 		if !ok {
 			n = &Trie{
-				v: sentence[:i+1],
+				v:         sentence[:i+1],
+				sentences: make(map[string]int),
+				children:  make(map[rune]*Trie),
 			}
 		}
 		currNode = n
 		if i == len(sentence)-1 {
-			if len(n.top3) > 1 {
-				n.top3[0].weight += weight
-			} else {
-				n.top3 = []Sentence{
-					{
-						v:      sentence,
-						weight: weight,
-					},
-				}
-			}
+			n.sentences[sentence] += weight
 		}
 	}
 }
 
 func (this *AutocompleteSystem) rebuild() {
-	_ = this.getTop3(this.trie)
+	_ = this.getTop3(this.root)
 }
 
 func (this *AutocompleteSystem) getTop3(n *Trie) []Sentence {
-	var list []Sentence
+	list := mapToSlice(n.sentences)
 	if len(n.children) == 0 {
-		return n.top3
+		return list
 	}
+
 	for _, ch := range n.children {
 		chTop := this.getTop3(ch)
 		list = append(list, chTop...)
@@ -95,6 +93,18 @@ func (this *AutocompleteSystem) getTop3(n *Trie) []Sentence {
 	})
 	n.top3 = list[:3]
 	return n.top3
+}
+
+func mapToSlice(m map[string]int) []Sentence {
+	var res []Sentence
+	for s, w := range m {
+		res = append(res, Sentence{
+			v:      s,
+			weight: w,
+		})
+	}
+
+	return res
 }
 
 /**
